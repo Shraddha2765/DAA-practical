@@ -20,90 +20,165 @@ public class UniversityExamScheduler {
             adjList.get(c2).add(c1);
         }
 
-        // Greedy coloring algorithm
+        // Check if two nodes are adjacent
+        boolean isAdjacent(int a, int b) {
+            return adjList.get(a).contains(b);
+        }
+
+        // --------------------------------------------------
+        // 1. GREEDY COLORING METHOD
+        // --------------------------------------------------
         void greedyColoring() {
-            int[] result = new int[numCourses]; // color assigned to each course
+            int[] result = new int[numCourses];
             Arrays.fill(result, -1);
 
-            // Assign first color to first course
+            // Assign first color to first vertex
             result[0] = 0;
-
-            // Temporary array to mark unavailable colors
             boolean[] available = new boolean[numCourses];
 
-            // Assign colors to remaining courses
+            // Assign colors to remaining vertices
             for (int u = 1; u < numCourses; u++) {
-
-                // Mark colors of adjacent courses as unavailable
                 Arrays.fill(available, false);
+
                 for (int neighbor : adjList.get(u)) {
                     if (result[neighbor] != -1)
                         available[result[neighbor]] = true;
                 }
 
-                // Find the first available color
                 int color;
-                for (color = 0; color < numCourses; color++) {
+                for (color = 0; color < numCourses; color++)
                     if (!available[color])
                         break;
-                }
                 result[u] = color;
             }
 
+            System.out.println("\n--- GREEDY COLORING ---");
+            printResult(result);
+        }
 
-	void welshPowellColoring() {
-            // Step 1: compute degree of each course
+        // --------------------------------------------------
+        // 2. WELSH-POWELL METHOD
+        // --------------------------------------------------
+        void welshPowellColoring() {
             int[] degree = new int[numCourses];
-            for (int i = 0; i < numCourses; i++) {
+            for (int i = 0; i < numCourses; i++)
                 degree[i] = adjList.get(i).size();
-            }
 
-            // Step 2: sort courses by decreasing degree
             Integer[] order = new Integer[numCourses];
             for (int i = 0; i < numCourses; i++) order[i] = i;
+
             Arrays.sort(order, (a, b) -> degree[b] - degree[a]);
 
-            // Step 3: prepare result array (colors for each course)
             int[] result = new int[numCourses];
-            Arrays.fill(result, -1); // uncolored
+            Arrays.fill(result, -1);
+            int color = 0;
 
-            int color = 0; // first slot (color 0)
-
-            // Step 4: color vertices
             for (int i = 0; i < numCourses; i++) {
                 int course = order[i];
-                if (result[course] == -1) { // if not yet colored
+                if (result[course] == -1) {
                     result[course] = color;
-
-                    // Assign same color to all non-adjacent uncolored vertices
                     for (int j = i + 1; j < numCourses; j++) {
-                        int nextCourse = order[j];
-                        if (result[nextCourse] == -1 && !isAdjacent(course, nextCourse)) {
-                            result[nextCourse] = color;
+                        int next = order[j];
+                        if (result[next] == -1 && !isAdjacent(course, next)) {
+                            boolean canColor = true;
+                            for (int neighbor : adjList.get(next)) {
+                                if (result[neighbor] == color) {
+                                    canColor = false;
+                                    break;
+                                }
+                            }
+                            if (canColor)
+                                result[next] = color;
                         }
                     }
-                    color++; // next color for next group
+                    color++;
                 }
             }
 
+            System.out.println("\n--- WELSH-POWELL COLORING ---");
+            printResult(result);
+        }
 
+        // --------------------------------------------------
+        // 3. DSATUR ALGORITHM
+        // --------------------------------------------------
+        void dsaturColoring() {
+            int[] result = new int[numCourses];
+            Arrays.fill(result, -1);
 
-            // Print the results
-            System.out.println("\nExam Slot Allocation (Greedy Coloring):");
-            for (int i = 0; i < numCourses; i++) {
-                System.out.println("Course " + i + " → Slot " + result[i]);
+            int[] degree = new int[numCourses];
+            for (int i = 0; i < numCourses; i++)
+                degree[i] = adjList.get(i).size();
+
+            int[] saturation = new int[numCourses];
+            Arrays.fill(saturation, 0);
+
+            int coloredCount = 0;
+            int maxDegreeVertex = 0;
+            for (int i = 1; i < numCourses; i++)
+                if (degree[i] > degree[maxDegreeVertex])
+                    maxDegreeVertex = i;
+
+            result[maxDegreeVertex] = 0;
+            coloredCount++;
+
+            while (coloredCount < numCourses) {
+                int nextVertex = -1, maxSat = -1;
+                for (int i = 0; i < numCourses; i++) {
+                    if (result[i] == -1) {
+                        int satCount = getSaturation(i, result);
+                        if (satCount > maxSat ||
+                                (satCount == maxSat && degree[i] > degree[nextVertex])) {
+                            maxSat = satCount;
+                            nextVertex = i;
+                        }
+                    }
+                }
+
+                boolean[] usedColors = new boolean[numCourses];
+                for (int neighbor : adjList.get(nextVertex))
+                    if (result[neighbor] != -1)
+                        usedColors[result[neighbor]] = true;
+
+                int color;
+                for (color = 0; color < numCourses; color++)
+                    if (!usedColors[color])
+                        break;
+
+                result[nextVertex] = color;
+                coloredCount++;
             }
 
+            System.out.println("\n--- DSATUR COLORING ---");
+            printResult(result);
+        }
+
+        int getSaturation(int vertex, int[] result) {
+            Set<Integer> distinctColors = new HashSet<>();
+            for (int neighbor : adjList.get(vertex))
+                if (result[neighbor] != -1)
+                    distinctColors.add(result[neighbor]);
+            return distinctColors.size();
+        }
+
+        // --------------------------------------------------
+        // PRINT RESULT METHOD
+        // --------------------------------------------------
+        void printResult(int[] result) {
             int numSlots = Arrays.stream(result).max().getAsInt() + 1;
-            System.out.println("\n✅ Minimum exam slots required (approx): " + numSlots);
+            for (int i = 0; i < numCourses; i++)
+                System.out.println("Course " + i + " → Exam Slot " + result[i]);
+            System.out.println("Minimum exam slots required: " + numSlots);
         }
     }
 
+    // --------------------------------------------------
+    // MAIN METHOD
+    // --------------------------------------------------
     public static void main(String[] args) {
-        // Example: 5 courses (0..4)
         Graph g = new Graph(5);
 
-        // Edges represent students enrolled in both courses
+        // Edges represent conflicts (common students)
         g.addEdge(0, 1);
         g.addEdge(0, 2);
         g.addEdge(1, 2);
@@ -112,7 +187,13 @@ public class UniversityExamScheduler {
         g.addEdge(3, 4);
 
         g.greedyColoring();
+        g.welshPowellColoring();
+        g.dsaturColoring();
+
+        // Comparison Summary
+        System.out.println("\n--- COMPARISON SUMMARY ---");
+        System.out.println("1. Greedy Coloring: Simple, fast, may not give optimal slots.");
+        System.out.println("2. Welsh-Powell: Uses degree sorting; reduces conflicts better.");
+        System.out.println("3. DSATUR: Most accurate; selects vertex with highest saturation and degree, giving near-optimal coloring.");
     }
 }
-
-
