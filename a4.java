@@ -28,20 +28,34 @@ public class SmartAmbulanceDirected {
             adj.get(from).add(new Edge(to, time));
         }
 
-        // Dijkstra's algorithm
+        // ✅ Function to update edge weight (for real-time traffic changes)
+        void updateEdge(int from, int to, int newTime) {
+            boolean found = false;
+            for (Edge e : adj.get(from)) {
+                if (e.to == to) {
+                    e.time = newTime;
+                    found = true;
+                    System.out.println("✅ Updated travel time from " + from + " -> " + to + " to " + newTime + " minutes");
+                    break;
+                }
+            }
+            if (!found) {
+                System.out.println("⚠️ No such road found from " + from + " -> " + to);
+            }
+        }
+
+        // 🧭 Dijkstra's algorithm
         void dijkstra(int src, Set<Integer> hospitals) {
             int[] dist = new int[n];
             int[] parent = new int[n];
             boolean[] visited = new boolean[n];
 
-            // initialize distances
             Arrays.fill(dist, Integer.MAX_VALUE);
             Arrays.fill(parent, -1);
             dist[src] = 0;
 
-            // priority queue (min-heap)
             PriorityQueue<int[]> pq = new PriorityQueue<>(Comparator.comparingInt(a -> a[0]));
-            pq.add(new int[]{0, src}); // {distance, node}
+            pq.add(new int[]{0, src});
 
             while (!pq.isEmpty()) {
                 int[] cur = pq.poll();
@@ -62,13 +76,13 @@ public class SmartAmbulanceDirected {
                 }
             }
 
-            // print all distances
-            System.out.println("\nShortest travel times from source (" + src + "):");
+            System.out.println("\n📍 Shortest travel times from Source (" + src + "):");
             for (int i = 0; i < n; i++) {
-                System.out.println("To node " + i + " : " + (dist[i] == Integer.MAX_VALUE ? "INF" : dist[i]) + " minutes");
+                System.out.println("To Node " + i + " : " +
+                        (dist[i] == Integer.MAX_VALUE ? "INF" : dist[i]) + " minutes");
             }
 
-            // find nearest hospital
+            // 🏥 Find nearest hospital
             int nearestHospital = -1;
             int bestTime = Integer.MAX_VALUE;
             for (int h : hospitals) {
@@ -78,13 +92,17 @@ public class SmartAmbulanceDirected {
                 }
             }
 
-            System.out.println("\nNearest hospital: " + nearestHospital + " (Time: " + bestTime + " minutes)");
-            System.out.print("Path: ");
-            printPath(nearestHospital, parent);
-            System.out.println();
+            if (nearestHospital == -1 || bestTime == Integer.MAX_VALUE) {
+                System.out.println("\n❌ No reachable hospital found.");
+            } else {
+                System.out.println("\n🚑 Nearest hospital: Node " + nearestHospital + " (Time: " + bestTime + " minutes)");
+                System.out.print("🛣 Path: ");
+                printPath(nearestHospital, parent);
+                System.out.println();
+            }
         }
 
-        // reconstruct and print path
+        // Print path (using parent array)
         void printPath(int dest, int[] parent) {
             if (dest == -1) {
                 System.out.println("No path available");
@@ -106,9 +124,10 @@ public class SmartAmbulanceDirected {
     }
 
     public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
         Graph g = new Graph(6);
 
-        // Directed roads (as per your example)
+        // Directed roads
         g.addEdge(0, 1, 4);
         g.addEdge(0, 2, 2);
         g.addEdge(1, 2, 1);
@@ -122,8 +141,35 @@ public class SmartAmbulanceDirected {
         int source = 0;
         Set<Integer> hospitals = new HashSet<>(Arrays.asList(4, 5));
 
-        g.dijkstra(source, hospitals);
+        while (true) {
+            System.out.println("\n==============================");
+            System.out.println("🚨 SMART AMBULANCE MENU 🚨");
+            System.out.println("1. Calculate shortest route to hospitals");
+            System.out.println("2. Update travel time (edge weight)");
+            System.out.println("3. Exit");
+            System.out.print("Enter your choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    g.dijkstra(source, hospitals);
+                    break;
+                case 2:
+                    System.out.print("Enter from-node: ");
+                    int from = sc.nextInt();
+                    System.out.print("Enter to-node: ");
+                    int to = sc.nextInt();
+                    System.out.print("Enter new travel time (minutes): ");
+                    int newTime = sc.nextInt();
+                    g.updateEdge(from, to, newTime);
+                    break;
+                case 3:
+                    System.out.println("✅ Exiting... Stay safe 🚑💨");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("⚠️ Invalid choice! Try again.");
+            }
+        }
     }
 }
-
-
