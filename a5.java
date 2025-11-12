@@ -1,126 +1,195 @@
 import java.util.*;
 
-public class SimpleSwiftCargo {
-    public static void main(String[] args) {
-        Graph g = new Graph();
+public class SmartAmbulanceDirected {
 
-        // Add nodes (stage 0 to 3)
-        g.addNode(1, 0); // source
-        g.addNode(2, 1);
-        g.addNode(3, 1);
-        g.addNode(4, 2);
-        g.addNode(5, 2);
-        g.addNode(6, 3); // destination
-
-        // Add edges with only cost
-        g.addEdge(1, 2, 5);
-        g.addEdge(1, 3, 6);
-        g.addEdge(2, 4, 4);
-        g.addEdge(2, 5, 7);
-        g.addEdge(3, 4, 2);
-        g.addEdge(3, 5, 5);
-        g.addEdge(4, 6, 6);
-        g.addEdge(5, 6, 4);
-
-        // Find minimum cost route
-        g.findMinCostPath(1, 6);
-    }
-}
-
-class Edge {
-    int from, to;
-    double cost;
-    Edge(int from, int to, double cost) {
-        this.from = from;
-        this.to = to;
-        this.cost = cost;
-    }
-}
-
-class Node {
-    int id, stage;
-    Node(int id, int stage) {
-        this.id = id;
-        this.stage = stage;
-    }
-}
-
-class Graph {
-    Map<Integer, Node> nodes =  new HashMap<>();
-    Map<Integer, List<Edge>> adj = new HashMap<>();
-    Map<Integer, List<Integer>> stageNodes = new HashMap<>();
-
-    // Add node
-    void addNode(int id, int stage) {
-        Node n = new Node(id, stage);
-        nodes.put(id, n);
-        adj.put(id, new ArrayList<>());
-        stageNodes.computeIfAbsent(stage, k -> new ArrayList<>()).add(id);
-    }
-
-    // Add edge
-    void addEdge(int from, int to, double cost) {
-        if (!nodes.containsKey(from) || !nodes.containsKey(to))
-            throw new RuntimeException("Invalid node id");
-        adj.get(from).add(new Edge(from, to, cost));
-    }
-
-    // Dynamic Programming algorithm for multistage graph
-    void findMinCostPath(int sourceId, int destId) {
-        Node src = nodes.get(sourceId);
-        Node dst = nodes.get(destId);
-        if (src == null || dst == null || src.stage > dst.stage) {
-            System.out.println("Invalid source or destination");
-            return;
+    static class Edge {
+        int to;
+        int time; // travel time in minutes
+        Edge(int to, int time) {
+            this.to = to;
+            this.time = time;
         }
+    }
 
-        Map<Integer, Double> dp = new HashMap<>(); // min cost to reach each node
-        Map<Integer, Integer> parent = new HashMap<>(); // for path reconstruction
+    static class Graph {
+        int n; // number of intersections
+        List<List<Edge>> adj; // adjacency list
 
-        // Step 1: Initialize all nodes' cost = ∞
-        for (int id : nodes.keySet())
-            dp.put(id, Double.POSITIVE_INFINITY);
-        dp.put(sourceId, 0.0);
-
-        // Step 2: Stage-by-stage DP
-        for (int st = src.stage; st <= dst.stage; st++) {
-            List<Integer> currStage = stageNodes.getOrDefault(st, Collections.emptyList());
-            for (int u : currStage) {
-                double costU = dp.get(u);
-                if (costU == Double.POSITIVE_INFINITY) continue;
-
-                for (Edge e : adj.getOrDefault(u, Collections.emptyList())) {
-                    Node toNode = nodes.get(e.to);
-                    if (toNode.stage < st) continue; // no backward movement
-
-                    double newCost = costU + e.cost;
-                    if (newCost < dp.get(e.to)) {
-                        dp.put(e.to, newCost);
-                        parent.put(e.to, u);
-                    }
-                }
+        Graph(int n) {
+            this.n = n;
+            adj = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                adj.add(new ArrayList<>());
             }
         }
 
-        // Step 3: Print result
-        double finalCost = dp.get(destId);
-        if (finalCost == Double.POSITIVE_INFINITY) {
-            System.out.println("No path found.");
-            return;
+        // Add directed edge (one-way road)
+        void addEdge(int from, int to, int time) {
+            adj.get(from).add(new Edge(to, time));
         }
 
-        // reconstruct path
-        LinkedList<Integer> path = new LinkedList<>();
-        int cur = destId;
-        while (cur != sourceId) {
-            path.addFirst(cur);
-            cur = parent.get(cur);
+        // Update single edge (manual traffic update)
+        void updateEdge(int from, int to, int newTime) {
+            boolean found = false;
+            for (Edge e : adj.get(from)) {
+                if (e.to == to) {
+                    e.time = newTime;
+                    found = true;
+                    System.out.println("Updated edge " + from + " -> " + to + " to new travel time: " + newTime + " minutes");
+                    break;
+                }
+            }
+            if (!found)
+                System.out.println("No edge found from " + from + " -> " + to);
         }
-        path.addFirst(sourceId);
 
-        System.out.println("Minimum cost path: " + path);
-        System.out.println("Total cost: " + finalCost);
+        // Bulk update multiple edge costs
+        void updateEdgeCost() {
+            Scanner sc = new Scanner(System.in);
+            System.out.print("Enter number of updates to perform: ");
+            int k = sc.nextInt();
+
+            for (int i = 0; i < k; i++) {
+                System.out.print("\nUpdate " + (i + 1) + " - From: ");
+                int from = sc.nextInt();
+                System.out.print("To: ");
+                int to = sc.nextInt();
+                System.out.print("New travel time (min): ");
+                int time = sc.nextInt();
+                updateEdge(from, to, time);
+            }
+            System.out.println("All updates completed successfully.");
+        }
+
+        // Dijkstra's algorithm for shortest path
+        void dijkstra(int src, Set<Integer> hospitals) {
+            int[] dist = new int[n];
+            int[] parent = new int[n];
+            boolean[] visited = new boolean[n];
+
+            Arrays.fill(dist, Integer.MAX_VALUE);
+            Arrays.fill(parent, -1);
+            dist[src] = 0;
+
+            PriorityQueue<int[]> pq = new PriorityQueue<>(Comparator.comparingInt(a -> a[0]));
+            pq.add(new int[]{0, src});
+
+            while (!pq.isEmpty()) {
+                int[] cur = pq.poll();
+                int d = cur[0];
+                int u = cur[1];
+
+                if (visited[u]) continue;
+                visited[u] = true;
+
+                for (Edge e : adj.get(u)) {
+                    int v = e.to;
+                    int newDist = d + e.time;
+                    if (newDist < dist[v]) {
+                        dist[v] = newDist;
+                        parent[v] = u;
+                        pq.add(new int[]{newDist, v});
+                    }
+                }
+            }
+
+            System.out.println("\nShortest travel times from Source (" + src + "):");
+            for (int i = 0; i < n; i++) {
+                System.out.println("To node " + i + " : " +
+                        (dist[i] == Integer.MAX_VALUE ? "INF" : dist[i]) + " minutes");
+            }
+
+            // Find nearest hospital
+            int nearestHospital = -1;
+            int bestTime = Integer.MAX_VALUE;
+            for (int h : hospitals) {
+                if (dist[h] < bestTime) {
+                    bestTime = dist[h];
+                    nearestHospital = h;
+                }
+            }
+
+            if (nearestHospital == -1 || bestTime == Integer.MAX_VALUE) {
+                System.out.println("\nNo reachable hospital found.");
+            } else {
+                System.out.println("\nNearest hospital: Node " + nearestHospital +
+                        " (Time: " + bestTime + " minutes)");
+                System.out.print("Path: ");
+                printPath(nearestHospital, parent);
+                System.out.println();
+            }
+        }
+
+        // Reconstruct and print the shortest path
+        void printPath(int dest, int[] parent) {
+            if (dest == -1) {
+                System.out.println("No path available");
+                return;
+            }
+            List<Integer> path = new ArrayList<>();
+            int cur = dest;
+            while (cur != -1) {
+                path.add(cur);
+                cur = parent[cur];
+            }
+            Collections.reverse(path);
+            for (int i = 0; i < path.size(); i++) {
+                System.out.print(path.get(i));
+                if (i != path.size() - 1) System.out.print(" -> ");
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Graph g = new Graph(6);
+
+        // Directed roads (example graph)
+        g.addEdge(0, 1, 4);
+        g.addEdge(0, 2, 2);
+        g.addEdge(1, 2, 1);
+        g.addEdge(1, 3, 5);
+        g.addEdge(2, 3, 8);
+        g.addEdge(2, 4, 10);
+        g.addEdge(3, 4, 2);
+        g.addEdge(3, 5, 6);
+        g.addEdge(4, 5, 2);
+
+        int source = 0;
+        Set<Integer> hospitals = new HashSet<>(Arrays.asList(4, 5));
+
+        while (true) {
+            System.out.println("\n==============================");
+            System.out.println("SMART AMBULANCE TRAFFIC SYSTEM");
+            System.out.println("1. Calculate shortest route to hospitals");
+            System.out.println("2. Update single road travel time");
+            System.out.println("3. Bulk update multiple roads");
+            System.out.println("4. Exit");
+            System.out.print("Enter your choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    g.dijkstra(source, hospitals);
+                    break;
+                case 2:
+                    System.out.print("Enter from-node: ");
+                    int from = sc.nextInt();
+                    System.out.print("Enter to-node: ");
+                    int to = sc.nextInt();
+                    System.out.print("Enter new travel time: ");
+                    int time = sc.nextInt();
+                    g.updateEdge(from, to, time);
+                    break;
+                case 3:
+                    g.updateEdgeCost();
+                    break;
+                case 4:
+                    System.out.println("Exiting system...");
+                    return;
+                default:
+                    System.out.println("Invalid choice, please try again.");
+            }
+        }
     }
 }
-
-
